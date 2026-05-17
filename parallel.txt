@@ -1,0 +1,86 @@
+@Library('share-lab') _
+
+pipeline {
+    agent any
+    stages {
+        stage('SCM pull') {
+            steps {
+                echo 'Building application...'
+            }
+        }
+        stage('Parallel Tests') {
+            parallel {
+                stage('Docker build') {
+                    steps {
+                        script {
+                        dockerIamge.dockerBuild()
+                        }
+                    }
+                }
+            
+                stage('trivy scan') {
+                    steps {
+                        script {
+                        trivyIamge.trivtyScen()
+                        }
+                    }
+                }
+                stage('bandit scan') {
+                    steps {
+                        script {
+                        banditIamge.banditScan()
+                        }
+                    }
+                }
+                stage('sonarqube scan') {
+                    steps {
+                        script {
+                        sonarqubeIamge.sonarLocalScan()
+                        sonarqubeIamge.sonarCreateProject("dolev")
+                        }
+                    }
+                }
+            }
+        }
+        stage('docker push') {
+            parallel {
+                stage('Docker push') {
+                    steps {
+                        script {
+                        dockerIamge.dockerPush()
+                        }
+                    }
+                }
+            
+                stage('Unit test') {
+                    steps {
+                        script {
+                        unit.unitScan()
+                        }
+                    }
+                }
+            }
+        }
+        stage('Deploy'){
+            steps{
+                script {
+                        dockerIamge.dockerDeploy()
+                }
+            }
+        }
+        stage('test'){
+            steps{
+                script {
+                        unit.unitTest()
+                }
+            }
+        }
+        stage('Post install'){
+            steps{
+                script {
+                    postInstall.postDownload()
+                }
+            }
+        }
+    }
+}
